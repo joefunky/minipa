@@ -24,7 +24,7 @@ def run(refresh=False):
         for _ in range(2):
             try:
                 r = requests.post(url, data={"data": QUERY}, timeout=240,
-                                  headers={"User-Agent": "pakibo-milano/0.1"})
+                                  headers={"User-Agent": "minipa/0.1"})
                 r.raise_for_status()
                 data = r.json()
                 out.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")

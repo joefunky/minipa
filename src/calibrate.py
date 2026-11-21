@@ -21,7 +21,7 @@ def run():
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import confusion_matrix, precision_score, recall_score
 
-    d = pd.read_csv(OUTPUT / "pakibo_milano.csv", dtype={"Codice": str}).merge(gt, on="Codice")
+    d = pd.read_csv(OUTPUT / "minipa_milano.csv", dtype={"Codice": str}).merge(gt, on="Codice")
     y = d.aperto.str.lower().str.strip().isin(["si", "sì", "1", "true", "yes"])
     if y.nunique() < 2:
         print("  calibrazione: servono sia negozi aperti sia chiusi nel campione")

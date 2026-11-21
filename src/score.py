@@ -1,4 +1,4 @@
-"""Punteggio Pakibo 0-100, fasce e file di output."""
+"""Punteggio MiniPa 0-100, fasce e file di output."""
 import json
 
 import numpy as np
@@ -12,7 +12,7 @@ from .match import load_osm, match
 from . import segnalazioni as SEG
 
 WEIGHTS = {"b_identikit": 35, "b_contesto": 25, "b_orari": 40}  # ricalibrare con calibrate.py
-CHAIN_CAP = 39  # le catene non sono Pakibo: restano nel dataset, fuori dalla mappa
+CHAIN_CAP = 39  # le catene non sono MiniPa: restano nel dataset, fuori dalla mappa
 
 
 def load_ds(name):
@@ -51,7 +51,7 @@ def build():
         pre = pd.concat([pre, pd.Series(extra.settore.eq("alimentare").to_numpy() |
                                         extra.insegna.str.contains(F.KEYWORDS).to_numpy())], ignore_index=True)
 
-    # negozi nuovi segnalati dai cittadini (note OSM #pakibo, esito "nuovo")
+    # negozi nuovi segnalati dai cittadini (note OSM #minipa, esito "nuovo")
     notes = SEG.load()
     nuovi = SEG.new_shops(notes)
     if len(nuovi):
@@ -110,7 +110,7 @@ COLS = ["Codice", "insegna", "indirizzo", "CAP", "MUNICIPIO", "NIL", "lat", "lon
 
 def write(shops, pre):
     out = shops[pre | shops.catena].copy()
-    out[COLS].to_csv(OUTPUT / "pakibo_milano.csv", index=False, encoding="utf-8-sig")
+    out[COLS].to_csv(OUTPUT / "minipa_milano.csv", index=False, encoding="utf-8-sig")
     out[out.fascia == "verifica"].sort_values("score", ascending=False)[COLS].to_csv(
         OUTPUT / "coda_verifica.csv", index=False, encoding="utf-8-sig")
 
@@ -122,7 +122,7 @@ def write(shops, pre):
                 "geometry": {"type": "Point", "coordinates": [r.lon, r.lat]}}
 
     fc = {"type": "FeatureCollection", "features": [feat(r) for _, r in out.iterrows()]}
-    (OUTPUT / "pakibo_milano.geojson").write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
+    (OUTPUT / "minipa_milano.geojson").write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
 
     # per la mappa: solo fasce >= 40, in un .js così index.html si apre anche da file://
     keep = ["Codice", "insegna", "osm_name", "indirizzo", "MUNICIPIO", "NIL", "score", "fascia", "chiusura_max",
@@ -133,7 +133,7 @@ def write(shops, pre):
         for f in fc["features"] if f["properties"]["score"] >= 30 and f["properties"]["candidato"]]}
     zones = json.loads((INTERIM / "zone_movida.geojson").read_text(encoding="utf-8"))
     meta = {k: json.loads((RAW / f"{k}.meta.json").read_text(encoding="utf-8")) for k in ("ds49", "ds58", "osm_shops")}
-    (WEB / "data.js").write_text("window.PAKIBO=" + json.dumps({"negozi": web, "zone": zones, "meta": meta},
+    (WEB / "data.js").write_text("window.MINIPA=" + json.dumps({"negozi": web, "zone": zones, "meta": meta},
                                  ensure_ascii=False) + ";", encoding="utf-8")
     return out
 

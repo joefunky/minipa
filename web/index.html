@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pakibo Milano</title>
+<title>MiniPa Milano</title>
 <meta name="description" content="Minimarket aperti la sera e la notte a Milano, da dati aperti e segnalazioni.">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
@@ -35,7 +35,7 @@
 <body>
 <div id="map"></div>
 <div id="panel">
-  <h1 id="toggle">Pakibo Milano <span class="muted" id="arrow">▲</span></h1>
+  <h1 id="toggle">MiniPa Milano <span class="muted" id="arrow">▲</span></h1>
   <div class="body">
     <div class="muted">Minimarket aperti la sera e la notte. Sei a Milano? Apri un negozio sulla mappa e dicci se è aperto.</div>
     <label><input type="checkbox" id="fNow"> aperto adesso (orari noti)</label>
@@ -57,7 +57,7 @@
 // ?osm=dev manda le note al server di prova di OSM invece che a quello vero
 const OSM_API = new URLSearchParams(location.search).get('osm') === 'dev'
   ? 'https://master.apis.dev.openstreetmap.org' : 'https://api.openstreetmap.org';
-const D = window.PAKIBO, $ = id => document.getElementById(id);
+const D = window.MINIPA, $ = id => document.getElementById(id);
 const map = L.map('map', { preferCanvas: true }).setView([45.4642, 9.19], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19,
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL) · ' +
@@ -80,8 +80,8 @@ function localISO(d = new Date()) {
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-const sent = (() => { try { return JSON.parse(localStorage.getItem('pakibo_sent') || '{}'); } catch { return {}; } })();
-function remember(key) { sent[key] = Date.now(); try { localStorage.setItem('pakibo_sent', JSON.stringify(sent)); } catch {} }
+const sent = (() => { try { return JSON.parse(localStorage.getItem('minipa_sent') || '{}'); } catch { return {}; } })();
+function remember(key) { sent[key] = Date.now(); try { localStorage.setItem('minipa_sent', JSON.stringify(sent)); } catch {} }
 
 function segForm(p, lat, lon) {
   const nuovo = !p;
@@ -108,13 +108,13 @@ function segForm(p, lat, lon) {
   send.onclick = async () => {
     const f = k => el.querySelector(`[data-f="${k}"]`)?.value.trim() || '';
     const nome = nuovo ? f('negozio') : [p.insegna || p.osm_name, p.indirizzo].filter(Boolean).join(', ');
-    const lines = ['#pakibo segnalazione', `esito: ${esito}`, `visto_il: ${localISO()}`];
+    const lines = ['#minipa segnalazione', `esito: ${esito}`, `visto_il: ${localISO()}`];
     if (f('chiude')) lines.push(`chiude_alle: ${f('chiude')}`);
     if (f('orari')) lines.push(`orari_esposti: ${f('orari')}`);
     if (nome) lines.push(`negozio: ${nome}`);
     if (!nuovo) lines.push(`codice: ${p.Codice}`);
     if (p?.osm_id) lines.push(`osm: ${p.osm_id}`);
-    lines.push('', 'Segnalazione dalla mappa Pakibo Milano (negozi aperti la sera, dati aperti).',
+    lines.push('', 'Segnalazione dalla mappa MiniPa Milano (negozi aperti la sera, dati aperti).',
       'Per chi mappa: se confermata, aggiornare opening_hours / stato del negozio.');
     send.disabled = true; el.querySelector('[data-out]').textContent = 'Invio…';
     try {

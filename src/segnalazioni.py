@@ -1,8 +1,8 @@
-"""Segnalazioni dei cittadini, salvate come note OpenStreetMap con tag #pakibo.
+"""Segnalazioni dei cittadini, salvate come note OpenStreetMap con tag #minipa.
 
 La mappa web crea una nota anonima con un testo strutturato, per esempio:
 
-    #pakibo segnalazione
+    #minipa segnalazione
     esito: aperto            (aperto | chiuso | chiuso_definitivo | non_minimarket | nuovo)
     visto_il: 2026-11-22T01:30
     chiude_alle: 02:00       (facoltativo)
@@ -29,11 +29,11 @@ def fetch(refresh=False):
     out = RAW / "segnalazioni_osm.json"
     if out.exists() and not refresh:
         return out
-    r = requests.get(API, params={"q": "#pakibo", "closed": -1, "limit": 10000}, timeout=120,
-                     headers={"User-Agent": "pakibo-milano/0.1"})
+    r = requests.get(API, params={"q": "#minipa", "closed": -1, "limit": 10000}, timeout=120,
+                     headers={"User-Agent": "minipa/0.1"})
     r.raise_for_status()
     out.write_text(r.text, encoding="utf-8")
-    save_meta("segnalazioni_osm", fonte="OSM Notes API, testo #pakibo", licenza="ODbL",
+    save_meta("segnalazioni_osm", fonte="OSM Notes API, testo #minipa", licenza="ODbL",
               note=len(r.json().get("features", [])))
     return out
 
@@ -50,7 +50,7 @@ def load():
             continue
         first = (ft["properties"].get("comments") or [{}])[0]
         text = first.get("text", "")
-        if "#pakibo" not in text.lower():
+        if "#minipa" not in text.lower():
             continue
         kv = dict(_FIELD.findall(text))
         rows.append({"note_id": ft["properties"]["id"], "lon": lon, "lat": lat,

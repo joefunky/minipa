@@ -1,8 +1,8 @@
-# Pakibo Milano — v1
+# MiniPa Milano — v1
 
 Mappa dei minimarket indipendenti aperti la sera e la notte a Milano. Parte dai dati aperti e cresce con le segnalazioni di chi è a Milano. La specifica (`HANDOFF_pakibo_milano.md`) resta solo in locale, fuori dal repository.
 
-**Cartella:** il progetto sta nella radice di `20261121_MINIPA/`, senza la sottocartella `pakibo-milano/`, perché la cartella è dedicata solo a questo.
+**Cartella:** il progetto sta nella radice di `20261121_MINIPA/`, senza la sottocartella `minipa/`, perché la cartella è dedicata solo a questo.
 
 ## Come si lancia
 
@@ -72,7 +72,7 @@ Chi apre la mappa può toccare un negozio e segnalare:
 Con "＋ Nuovo negozio" si aggiunge un punto che non è in mappa.
 
 **Come funziona:**
-- Ogni segnalazione diventa una **nota OSM anonima** con il tag `#pakibo`, inviata dal browser alle API di OSM. Non serve un server, non serve un account e non costa niente. Le note sono pubbliche, e i mappatori OSM possono usarle per aggiungere `opening_hours`.
+- Ogni segnalazione diventa una **nota OSM anonima** con il tag `#minipa`, inviata dal browser alle API di OSM. Non serve un server, non serve un account e non costa niente. Le note sono pubbliche, e i mappatori OSM possono usarle per aggiungere `opening_hours`.
 - `src/segnalazioni.py` rilegge le note a ogni run e le trasforma in prove:
   - "aperto" visto dopo le 22 alza il blocco orari (0,5, oppure 0,8 se dopo mezzanotte);
   - 2 o più conferme notturne, senza segnalazioni contrarie, portano il negozio almeno a 70;
@@ -106,7 +106,7 @@ Il file `data/manual/zone_movida.csv` descrive ogni zona con un cerchio (centro 
 
 ## Output
 
-- `data/output/pakibo_milano.geojson` e `.csv`: tutti i candidati e le catene, con `score`, `fascia`, `chiusura_max`, `dopo_mezzanotte`, `fonti_orari`, `catena`, i tre blocchi e i dati del match.
+- `data/output/minipa_milano.geojson` e `.csv`: tutti i candidati e le catene, con `score`, `fascia`, `chiusura_max`, `dopo_mezzanotte`, `fonti_orari`, `catena`, i tre blocchi e i dati del match.
 - `data/output/coda_verifica.csv`: la fascia 40–69, ordinata per punteggio.
 - `data/output/campione_verifica.csv`: 29 negozi da verificare, stratificati per fascia e municipio. Una volta compilato va copiato in `data/ground_truth.csv`; con almeno 20 righe `calibrate.py` stima i pesi, precision@≥70, recall e matrice di confusione.
 - `web/data.js`: i dati della mappa (fasce ≥40). È un file `.js` e non un GeoJSON, così `index.html` funziona anche aperto da disco.

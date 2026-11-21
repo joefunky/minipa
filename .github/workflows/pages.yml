@@ -1,4 +1,4 @@
-# Ogni notte: scarica DS49, DS58, OSM e le segnalazioni #pakibo, ricalcola e pubblica la mappa.
+# Ogni notte: scarica DS49, DS58, OSM e le segnalazioni #minipa, ricalcola e pubblica la mappa.
 name: aggiorna-mappa
 on:
   schedule:
