@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+data/raw/
+data/interim/
+data/output/
+data/ground_truth_segnalazioni.csv
+web/data.js
+.claude/
+BRIEF_sessione.md
+HANDOFF_pakibo_milano.md

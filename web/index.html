@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pakibo Milano</title>
+<meta name="description" content="Minimarket aperti la sera e la notte a Milano, da dati aperti e segnalazioni.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root { --bg:#fff; --fg:#1d1d1f; --muted:#666; --panel:rgba(255,255,255,.96); --line:#ddd; --accent:#1a73e8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111; --fg:#eee; --muted:#aaa; --panel:rgba(24,24,24,.96); --line:#333; --accent:#8ab4f8; } }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui, sans-serif; }
+  #map { position:absolute; inset:0; }
+  #panel { position:absolute; z-index:1000; top:10px; left:10px; width:260px; max-width:calc(100% - 64px);
+           background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 12px; box-sizing:border-box; }
+  #panel h1 { font-size:16px; margin:0; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  #panel.closed .body { display:none; }
+  #panel label { display:block; margin:6px 0; }
+  #panel select, #panel input[type=range] { width:100%; }
+  button { font:inherit; padding:6px 10px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .row { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
+  .muted { color:var(--muted); font-size:12px; }
+  .legend span { display:inline-block; width:10px; height:10px; border-radius:50%; margin:0 4px 0 8px; }
+  .leaflet-popup-content { font-size:13px; min-width:220px; }
+  .leaflet-popup-content b.t { font-size:14px; }
+  .seg { border-top:1px solid var(--line); margin-top:8px; padding-top:6px; }
+  .seg input[type=text], .seg input[type=time] { width:100%; box-sizing:border-box; padding:4px; margin:3px 0; }
+  .seg .row button { flex:1 1 45%; padding:5px; font-size:12px; }
+  .seg .row button.sel { outline:2px solid var(--accent); }
+  #banner { position:absolute; z-index:1000; bottom:24px; left:50%; transform:translateX(-50%); background:var(--panel);
+            border:1px solid var(--line); border-radius:8px; padding:8px 12px; display:none; max-width:90%; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+  <h1 id="toggle">Pakibo Milano <span class="muted" id="arrow">▲</span></h1>
+  <div class="body">
+    <div class="muted">Minimarket aperti la sera e la notte. Sei a Milano? Apri un negozio sulla mappa e dicci se è aperto.</div>
+    <label><input type="checkbox" id="fNow"> aperto adesso (orari noti)</label>
+    <label><input type="checkbox" id="fMid"> aperto dopo mezzanotte</label>
+    <label><input type="checkbox" id="fNew" checked> mostra anche "da scoprire"</label>
+    <label>Municipio <select id="fMun"><option value="">tutti</option></select></label>
+    <label>Punteggio minimo: <b id="vMin">30</b><input type="range" id="fMin" min="30" max="100" value="30"></label>
+    <label><input type="checkbox" id="fZone"> zone movida</label>
+    <div class="row"><button id="bLoc">📍 Vicino a me</button><button id="bAdd">＋ Nuovo negozio</button></div>
+    <div class="legend muted"><span style="background:#1a9850;margin-left:0"></span>probabile<span style="background:#f39c12"></span>da verificare<span style="background:#9aa0a6"></span>da scoprire</div>
+    <div class="muted" id="count"></div>
+    <div class="muted" id="dates"></div>
+  </div>
+</div>
+<div id="banner"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data.js"></script>
+<script>
+// ?osm=dev manda le note al server di prova di OSM invece che a quello vero
+const OSM_API = new URLSearchParams(location.search).get('osm') === 'dev'
+  ? 'https://master.apis.dev.openstreetmap.org' : 'https://api.openstreetmap.org';
+const D = window.PAKIBO, $ = id => document.getElementById(id);
+const map = L.map('map', { preferCanvas: true }).setView([45.4642, 9.19], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19,
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL) · ' +
+    'Esercizi © <a href="https://dati.comune.milano.it">Comune di Milano</a> (CC BY 4.0)' }).addTo(map);
+
+const DAYS = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'];
+const hm = m => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const COLOR = { probabile: '#1a9850', verifica: '#f39c12', da_scoprire: '#9aa0a6' };
+const LABEL = { probabile: 'probabile', verifica: 'da verificare', da_scoprire: 'da scoprire' };
+
+function openNow(orari, d = new Date()) {
+  if (!orari) return false;
+  const day = (d.getDay() + 6) % 7, m = d.getHours() * 60 + d.getMinutes(), prev = (day + 6) % 7;
+  return orari[day].some(([a, b]) => a <= m && m < b) || orari[prev].some(([a, b]) => b > 1440 && m < b - 1440);
+}
+
+// ---------- segnalazioni come note OSM ----------
+function localISO(d = new Date()) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+const sent = (() => { try { return JSON.parse(localStorage.getItem('pakibo_sent') || '{}'); } catch { return {}; } })();
+function remember(key) { sent[key] = Date.now(); try { localStorage.setItem('pakibo_sent', JSON.stringify(sent)); } catch {} }
+
+function segForm(p, lat, lon) {
+  const nuovo = !p;
+  const opts = nuovo ? [['nuovo', 'Minimarket aperto la sera']]
+    : [['aperto', '✅ Aperto adesso'], ['chiuso', '❌ Chiuso adesso'], ['chiuso_definitivo', 'Chiuso per sempre'], ['non_minimarket', 'Non è un minimarket']];
+  const el = document.createElement('div');
+  el.className = 'seg';
+  el.innerHTML = `<b>${nuovo ? 'Segnala un nuovo negozio qui' : 'Sei lì? Segnala'}</b>
+    ${!nuovo && sent[p.Codice] ? '<div class="muted">Hai già segnalato questo negozio, grazie.</div>' : ''}
+    ${nuovo ? '<input type="text" maxlength="60" placeholder="Insegna o tipo (es. minimarket, alimentari)" data-f="negozio">' : ''}
+    <div class="row">${opts.map(([v, t]) => `<button data-e="${v}">${t}</button>`).join('')}</div>
+    <label class="muted">Chiude alle (se lo sai) <input type="time" data-f="chiude"></label>
+    <input type="text" maxlength="80" placeholder="Orari esposti, es. tutti i giorni 8-2" data-f="orari">
+    <div class="muted">Solo orari e servizi: niente nomi di persone. La segnalazione diventa una nota pubblica e anonima su OpenStreetMap.</div>
+    <div class="row"><button class="primary" data-send disabled>Invia</button></div>
+    <div class="muted" data-out></div>`;
+  let esito = nuovo ? 'nuovo' : null;
+  const send = el.querySelector('[data-send]');
+  if (nuovo) { el.querySelector('[data-e]').classList.add('sel'); send.disabled = false; }
+  el.querySelectorAll('[data-e]').forEach(b => b.onclick = () => {
+    el.querySelectorAll('[data-e]').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel'); esito = b.dataset.e; send.disabled = false;
+  });
+  send.onclick = async () => {
+    const f = k => el.querySelector(`[data-f="${k}"]`)?.value.trim() || '';
+    const nome = nuovo ? f('negozio') : [p.insegna || p.osm_name, p.indirizzo].filter(Boolean).join(', ');
+    const lines = ['#pakibo segnalazione', `esito: ${esito}`, `visto_il: ${localISO()}`];
+    if (f('chiude')) lines.push(`chiude_alle: ${f('chiude')}`);
+    if (f('orari')) lines.push(`orari_esposti: ${f('orari')}`);
+    if (nome) lines.push(`negozio: ${nome}`);
+    if (!nuovo) lines.push(`codice: ${p.Codice}`);
+    if (p?.osm_id) lines.push(`osm: ${p.osm_id}`);
+    lines.push('', 'Segnalazione dalla mappa Pakibo Milano (negozi aperti la sera, dati aperti).',
+      'Per chi mappa: se confermata, aggiornare opening_hours / stato del negozio.');
+    send.disabled = true; el.querySelector('[data-out]').textContent = 'Invio…';
+    try {
+      const r = await fetch(`${OSM_API}/api/0.6/notes.json`, { method: 'POST',
+        body: new URLSearchParams({ lat: lat.toFixed(6), lon: lon.toFixed(6), text: lines.join('\n') }) });
+      if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 80));
+      const id = (await r.json()).properties.id;
+      remember(nuovo ? 'new:' + id : p.Codice);
+      el.querySelector('[data-out]').innerHTML = `Grazie! Nota <a target="_blank" href="${OSM_API.replace('api.', 'www.')}/note/${id}">#${id}</a>. Entrerà nella mappa al prossimo aggiornamento.`;
+    } catch (e) {
+      send.disabled = false;
+      el.querySelector('[data-out]').textContent = 'Invio non riuscito (' + e.message + '). Riprova tra poco.';
+    }
+  };
+  return el;
+}
+
+function popup(p, lat, lon) {
+  const name = p.insegna || p.osm_name || '(insegna non indicata)';
+  const ore = p.orari ? p.orari.map((iv, i) => `${DAYS[i]} ${iv.length ? iv.map(([a, b]) => hm(a) + '–' + hm(b)).join(', ') : 'chiuso'}`).join('<br>') : 'orari non noti';
+  const el = document.createElement('div');
+  el.innerHTML = `<b class="t">${esc(name)}</b><br>${esc(p.indirizzo)}${p.NIL ? ' · ' + esc(p.NIL) : ''}<br>
+    Punteggio <b>${p.score}</b> (${LABEL[p.fascia]})${p.segnalazioni ? ` · ${p.segnalazioni} segnalazioni` : ''}<br>
+    Chiusura più tarda: <b>${p.chiusura_max || 'n.d.'}</b>${p.dopo_mezzanotte ? ' · dopo mezzanotte' : ''}<br>
+    <span class="muted">${ore}</span><br>
+    <span class="muted">Fonte orari: ${esc(p.fonti_orari) || 'nessuna'}${p.osm_id ? ` · <a target="_blank" href="https://www.openstreetmap.org/${p.osm_id}">OSM</a>` : ''}${p.zona_movida ? ' · zona movida ' + esc(p.zona_movida) : ''}</span>`;
+  el.appendChild(segForm(p, lat, lon));
+  return el;
+}
+
+// ---------- mappa e filtri ----------
+const layer = L.layerGroup().addTo(map);
+const markers = D.negozi.features.map(f => {
+  const p = f.properties, [lon, lat] = f.geometry.coordinates;
+  const mk = L.circleMarker([lat, lon], { radius: p.fascia === 'da_scoprire' ? 5 : 7, weight: 1, color: '#333',
+    fillOpacity: .9, fillColor: COLOR[p.fascia] }).bindPopup(() => popup(p, lat, lon));
+  return { p, mk };
+}).sort((a, b) => a.p.score - b.p.score);  // i punteggi alti disegnati sopra
+const zones = L.geoJSON(D.zone, { style: { color: '#8e44ad', weight: 1, fillOpacity: .08 },
+  onEachFeature: (f, l) => l.bindTooltip(`${f.properties.zona} (${f.properties.ordinanza}, perimetro approssimato)`) });
+
+const mun = [...new Set(markers.map(m => m.p.MUNICIPIO).filter(Boolean))].sort((a, b) => a - b);
+$('fMun').innerHTML += mun.map(m => `<option>${m}</option>`).join('');
+
+function refresh() {
+  const now = $('fNow').checked, mid = $('fMid').checked, nw = $('fNew').checked, mu = $('fMun').value, min = +$('fMin').value;
+  $('vMin').textContent = min;
+  layer.clearLayers();
+  let n = 0;
+  for (const { p, mk } of markers) {
+    if (p.score < min || (!nw && p.fascia === 'da_scoprire') || (mid && !p.dopo_mezzanotte) ||
+        (mu && String(p.MUNICIPIO) !== mu) || (now && !openNow(p.orari))) continue;
+    mk.addTo(layer); n++;
+  }
+  $('count').textContent = `${n} negozi visibili su ${markers.length}`;
+  $('fZone').checked ? zones.addTo(map) : zones.remove();
+}
+['fNow', 'fMid', 'fNew', 'fMun', 'fMin', 'fZone'].forEach(id => $(id).addEventListener('input', refresh));
+
+$('toggle').onclick = () => { $('panel').classList.toggle('closed'); $('arrow').textContent = $('panel').classList.contains('closed') ? '▼' : '▲'; };
+if (innerWidth < 600) $('toggle').onclick();
+
+function banner(t) { $('banner').textContent = t; $('banner').style.display = t ? 'block' : 'none'; }
+$('bLoc').onclick = () => map.locate({ setView: true, maxZoom: 17 });
+let me;
+map.on('locationfound', e => { me?.remove(); me = L.circle(e.latlng, { radius: e.accuracy, weight: 1 }).addTo(map); });
+map.on('locationerror', () => banner('Posizione non disponibile.'));
+
+let adding = false;
+$('bAdd').onclick = () => { adding = true; banner('Tocca la mappa nel punto del negozio.'); };
+map.on('click', e => {
+  if (!adding) return;
+  adding = false; banner('');
+  L.popup().setLatLng(e.latlng).setContent(segForm(null, e.latlng.lat, e.latlng.lng)).openOn(map);
+});
+
+const m = D.meta;
+$('dates').textContent = `Dati: DS49 ${(m.ds49.aggiornato_il || '').slice(0, 10)}, DS58 ${(m.ds58.aggiornato_il || '').slice(0, 10)}, OSM ${(m.osm_shops.osm_base || '').slice(0, 10)}`;
+refresh();
+</script>
+</body>
+</html>
