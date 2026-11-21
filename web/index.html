@@ -40,6 +40,7 @@
     <div class="muted">Minimarket aperti la sera e la notte. Sei a Milano? Apri un negozio sulla mappa e dicci se è aperto.</div>
     <label><input type="checkbox" id="fNow"> aperto adesso (orari noti)</label>
     <label><input type="checkbox" id="fMid" checked> aperto dopo mezzanotte</label>
+    <label><input type="checkbox" id="fSafe"> solo i sicuri (probabili)</label>
     <label><input type="checkbox" id="fNew" checked> mostra anche "da scoprire"</label>
     <label>Municipio <select id="fMun"><option value="">tutti</option></select></label>
     <label>Punteggio minimo: <b id="vMin">30</b><input type="range" id="fMin" min="30" max="100" value="30"></label>
@@ -160,19 +161,19 @@ const mun = [...new Set(markers.map(m => m.p.MUNICIPIO).filter(Boolean))].sort((
 $('fMun').innerHTML += mun.map(m => `<option>${m}</option>`).join('');
 
 function refresh() {
-  const now = $('fNow').checked, mid = $('fMid').checked, nw = $('fNew').checked, mu = $('fMun').value, min = +$('fMin').value;
+  const safe = $('fSafe').checked, now = $('fNow').checked, mid = $('fMid').checked, nw = $('fNew').checked, mu = $('fMun').value, min = +$('fMin').value;
   $('vMin').textContent = min;
   layer.clearLayers();
   let n = 0;
   for (const { p, mk } of markers) {
-    if (p.score < min || (!nw && p.fascia === 'da_scoprire') || (mid && !p.dopo_mezzanotte) ||
+    if (p.score < min || (safe && p.fascia !== 'probabile') || (!nw && p.fascia === 'da_scoprire') || (mid && !p.dopo_mezzanotte) ||
         (mu && String(p.MUNICIPIO) !== mu) || (now && !openNow(p.orari))) continue;
     mk.addTo(layer); n++;
   }
   $('count').textContent = `${n} negozi visibili su ${markers.length}`;
   $('fZone').checked ? zones.addTo(map) : zones.remove();
 }
-['fNow', 'fMid', 'fNew', 'fMun', 'fMin', 'fZone'].forEach(id => $(id).addEventListener('input', refresh));
+['fSafe', 'fNow', 'fMid', 'fNew', 'fMun', 'fMin', 'fZone'].forEach(id => $(id).addEventListener('input', refresh));
 
 $('toggle').onclick = () => { $('panel').classList.toggle('closed'); $('arrow').textContent = $('panel').classList.contains('closed') ? '▼' : '▲'; };
 if (innerWidth < 600) $('toggle').onclick();
