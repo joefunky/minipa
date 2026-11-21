@@ -2,7 +2,7 @@
 import json
 import sys
 
-from . import calibrate, fetch_comune, fetch_osm, fetch_places, ordinanze, score, segnalazioni
+from . import fetch_overture, calibrate, fetch_comune, fetch_osm, fetch_places, ordinanze, score, segnalazioni
 from .common import OUTPUT
 
 
@@ -11,6 +11,7 @@ def main():
     print("1. download fonti open")
     fetch_comune.run(refresh)
     fetch_osm.run(refresh)
+    fetch_overture.run(refresh)
     fetch_places.run()
     segnalazioni.fetch(refresh=True)  # sempre: sono le novità più frequenti
     print("2. zone movida")
@@ -23,7 +24,8 @@ def main():
     cand = out[out.candidato]
     matched = cand.osm_id.notna()
     stats = {
-        "negozi_ds49": int((~shops.Codice.str.startswith("OSM:")).sum()),
+        "negozi_ds49": int((~shops.Codice.str.contains("^(?:OSM|OVT|SEG):")).sum()),
+        "negozi_solo_overture": int(shops.Codice.str.startswith("OVT:").sum()),
         "negozi_solo_osm": int(shops.Codice.str.startswith("OSM:").sum()),
         "candidati": int(len(cand)),
         "catene": int(out.catena.sum()),
@@ -31,6 +33,8 @@ def main():
         "abbinati_osm": int(matched.sum()),
         "tasso_match_pct": round(100 * matched.mean(), 1),
         "match_per_tipo": cand.match_tipo.value_counts().to_dict(),
+        "abbinati_overture": int(cand.ov_nome.notna().sum()),
+        "chiusi_secondo_overture": int(out.ov_stato.eq("permanently_closed").sum()),
         "con_orari": int((cand.fonti_orari == "OSM").sum()),
         "dopo_mezzanotte": int(cand.dopo_mezzanotte.sum()),
         "fasce": cand.fascia.value_counts().to_dict(),

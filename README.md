@@ -23,6 +23,7 @@ Poi apri `web/index.html` con doppio clic. Non serve nessuna build. Serve la con
 | B. DS58 – Pubblici esercizi in piano (Comune di Milano, CKAN) | densità di bar e ristoranti entro 200 m | CC BY 4.0 | 31/08/2026 |
 | C. Ordinanze movida 2026 | zone movida | atti del Comune | estiva 11/06–02/11/2026, Duomo/Arco 31/07–29/08/2026 |
 | D. OpenStreetMap (Overpass) | orari (`opening_hours`), tipo di negozio | ODbL | snapshot del 21/11/2026 |
+| I. Overture Maps Places (release mensile, letta con DuckDB) | nome usato online, categoria (minimarket/alimentari/specializzato), stato "chiuso per sempre", negozi assenti dal DS49 | CDLA Permissive 2.0 (+ODbL) | release 2026-11-18 |
 | E. Google Places | **non usata**: vincolo costo zero | — | — |
 | F, G, H (Open Wifi, Mapillary, storico DS49) | non usate nella v1 | — | — |
 
@@ -94,6 +95,12 @@ Si può anche lanciare a mano dalla scheda Actions. `data/raw`, `data/output` e 
 GitHub sospende i workflow pianificati dopo 60 giorni senza commit. In quel caso basta riattivarlo dalla scheda Actions.
 
 ## Vincolo etico
+
+Regole aggiunte con Overture (22/11/2026):
+- I nomi che vengono **solo da BrightQuery**, cioè da registri delle imprese, non si usano: possono contenere nomi di persone fisiche. Di quei negozi si tengono solo categoria e posizione.
+- Le categorie Overture che indicano una provenienza (es. `korean_grocery_store`) diventano `grocery_store`.
+- I marchi di catena corti o ambigui (MD, Pam, Coop, U2…) contano solo a inizio nome. Prima "MD" intercettava l'abbreviazione di un nome proprio e "coop" le cooperative.
+- Sulla mappa pubblica non compaiono nomi con forme societarie (srl, snc, "di Nome Cognome"…).
 
 Tutti i segnali descrivono il negozio: merce, dimensione, orari, posizione e contesto. L'insegna serve solo a tre cose: cercare parole chiave merceologiche o di orario, riconoscere le catene e fare l'abbinamento con OSM. Nessuna feature usa nomi di persone, nazionalità, etnia o dati del Registro Imprese.
 

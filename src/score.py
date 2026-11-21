@@ -1,5 +1,6 @@
 """Punteggio MiniPa 0-100, fasce e file di output."""
 import json
+import re
 
 import numpy as np
 import pandas as pd
@@ -10,6 +11,7 @@ from scipy.spatial import cKDTree
 from .common import INTERIM, OUTPUT, RAW, WEB, to_utm
 from .match import load_osm, match
 from . import segnalazioni as SEG
+from . import fetch_overture
 
 WEIGHTS = {"b_identikit": 35, "b_contesto": 25, "b_orari": 40}  # ricalibrare con calibrate.py
 CHAIN_CAP = 39  # le catene non sono MiniPa: restano nel dataset, fuori dalla mappa
@@ -51,6 +53,9 @@ def build():
         pre = pd.concat([pre, pd.Series(extra.settore.eq("alimentare").to_numpy() |
                                         extra.insegna.str.contains(F.KEYWORDS).to_numpy())], ignore_index=True)
 
+    # Overture: nome usato online, categoria e stato dei negozi alimentari
+    shops, pre = _overture(shops, pre)
+
     # negozi nuovi segnalati dai cittadini (note OSM #minipa, esito "nuovo")
     notes = SEG.load()
     nuovi = SEG.new_shops(notes)
@@ -87,11 +92,42 @@ def build():
     # due o più conferme notturne e nessuna contraria: probabile anche senza altri segnali
     conferme = (ev.seg_aperti_notte.fillna(0) >= 2).to_numpy() & ~contro
     s = np.where(conferme, np.maximum(s, 70), s)
+    # chiuso per sempre secondo Overture: escluso, salvo segnalazioni di apertura serale
+    chiuso_ov = shops.ov_stato.eq("permanently_closed").to_numpy() & (seg_b == 0)
+    s = np.where(chiuso_ov, np.minimum(s, 29), s)
     s = np.where(escludi, 0, s)
     shops["score"] = np.where(cand, s, 0).round(1)
     shops["fascia"] = fascia(shops.score)
     shops["candidato"] = cand & ~shops.catena
     SEG.write_ground_truth(notes)
+    return shops, pre
+
+
+OV_COLS = ["ov_id", "ov_nome", "ov_categoria", "ov_stato"]
+OV_SHOP = ["convenience_store", "grocery_store", "liquor_store", "market"]
+
+
+def _overture(shops, pre):
+    ov = fetch_overture.load_food()
+    if ov is None:
+        for c in OV_COLS:
+            shops[c] = None
+        return shops, pre
+    q = shops[pre].assign(insegna=shops.insegna.fillna(shops.osm_name))
+    mo = match(q, ov)
+    idx = mo.osm_idx.reindex(shops.index)
+    for c in OV_COLS:
+        shops[c] = idx.map(lambda j: ov.at[int(j), c] if pd.notna(j) else None)
+    shops["ov_match"] = mo.match_tipo.reindex(shops.index)
+    used = set(idx.dropna().astype(int))
+    ex = ov[~ov.index.isin(used) & ov.ov_categoria.isin(OV_SHOP) & (ov.ov_stato != "permanently_closed")].copy()
+    if len(ex):
+        _area(ex, shops, ex.osm_lon, ex.osm_lat)
+        ex = ex.assign(Codice="OVT:" + ex.ov_id, insegna=ex.ov_nome, lon=ex.osm_lon, lat=ex.osm_lat,
+                       indirizzo=ex.ov_indirizzo, match_tipo="solo_overture", settore="alimentare")
+        shops = pd.concat([shops, ex.drop(columns=["osm_lon", "osm_lat", "osm_name", "osm_brand", "ov_indirizzo"])],
+                          ignore_index=True)
+        pre = pd.concat([pre, pd.Series(True, index=range(len(ex)))], ignore_index=True)
     return shops, pre
 
 
@@ -105,7 +141,16 @@ def _area(df, shops, lon, lat):
 COLS = ["Codice", "insegna", "indirizzo", "CAP", "MUNICIPIO", "NIL", "lat", "lon", "settore",
         "superficie_vendita", "codice_ateco", "score", "fascia", "b_identikit", "b_contesto", "b_orari",
         "catena", "candidato", "chiusura_max", "dopo_mezzanotte", "h24", "fonti_orari", "n_pe_200m",
-        "zona_movida", "osm_id", "osm_shop", "osm_name", "osm_opening_hours", "match_tipo", "match_dist_m", "segnalazioni"]
+        "zona_movida", "osm_id", "osm_shop", "osm_name", "osm_opening_hours", "match_tipo", "match_dist_m", "segnalazioni", "ov_nome", "ov_categoria", "ov_stato", "ov_match"]
+
+
+_LEGAL = re.compile(r"\b(?:s\.?\s?r\.?\s?l|s\.?\s?n\.?\s?c|s\.?\s?a\.?\s?s|s\.?\s?p\.?\s?a|soc|ditta|"
+                    r"impresa individuale)\b\.?|\bdi\s+[A-Z][a-z]+\s+[A-Z]", re.I)
+
+
+def public_name(n):
+    """Sulla mappa pubblica niente ragioni sociali (possono contenere nomi di persone, §2)."""
+    return None if not isinstance(n, str) or not n.strip() or _LEGAL.search(n) else n
 
 
 def write(shops, pre):
@@ -125,11 +170,12 @@ def write(shops, pre):
     (OUTPUT / "minipa_milano.geojson").write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
 
     # per la mappa: solo fasce >= 40, in un .js così index.html si apre anche da file://
-    keep = ["Codice", "insegna", "osm_name", "indirizzo", "MUNICIPIO", "NIL", "score", "fascia", "chiusura_max",
+    keep = ["Codice", "insegna", "osm_name", "ov_nome", "indirizzo", "MUNICIPIO", "NIL", "score", "fascia", "chiusura_max",
             "dopo_mezzanotte", "fonti_orari", "osm_id", "zona_movida", "segnalazioni", "orari"]
     web = {"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": [round(c, 6) for c in f["geometry"]["coordinates"]]},
-         "properties": {k: f["properties"].get(k) for k in keep}}
+         "properties": {k: (public_name(v) if k in ("insegna", "osm_name", "ov_nome") else v)
+                        for k, v in ((k, f["properties"].get(k)) for k in keep)}}
         for f in fc["features"] if f["properties"]["score"] >= 30 and f["properties"]["candidato"]]}
     zones = json.loads((INTERIM / "zone_movida.geojson").read_text(encoding="utf-8"))
     meta = {k: json.loads((RAW / f"{k}.meta.json").read_text(encoding="utf-8")) for k in ("ds49", "ds58", "osm_shops")}

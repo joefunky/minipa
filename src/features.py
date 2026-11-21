@@ -15,10 +15,16 @@ from .ordinanze import in_zone
 
 KEYWORDS = re.compile(r"\b(?:mini ?market|market|food|drinks?|h ?24|24 ?h|24/7|alimentari|"
                       r"frutta e verdura|bazar|express)\b", re.I)
-CHAINS = re.compile(r"\b(?:carrefour|conad|pam|esselunga|coop|lidl|eurospin|il gigante|u2|tigros|despar|"
-                    r"eurospar|interspar|crai|sigma|simply|bennet|md|in'?s|penny|unes|natura ?s[iì]|"
-                    r"iper|tuod[iì]|aldi|todis|ekom|basko|prix|dimar|sapori ?& ?dintorni|"
-                    r"viaggiator goloso|a&o|famila|il centro|metro)\b", re.I)
+# Catene. I marchi corti o ambigui (MD, Pam, U2, Coop...) valgono solo a inizio nome:
+# altrimenti "MD" intercetterebbe abbreviazioni di nomi propri e "coop" le cooperative.
+CHAINS_ANY = re.compile(r"\b(?:carrefour|conad|esselunga|lidl|eurospin|il gigante|tigros|despar|eurospar|interspar|"
+                        r"bennet|penny|natura ?s[iì]|aldi|basko|sapori ?& ?dintorni|viaggiator goloso|tuod[iì])\b", re.I)
+CHAINS_START = re.compile(r"^\s*(?:ok\s+)?(?:md|pam|u2|prix|metro|sigma|simply|crai|coop|unes|iper|in'?s|a&o|"
+                          r"il centro|todis|ekom|dimar|famila)\b(?![.'])", re.I)
+
+
+def is_chain(*names):
+    return any(isinstance(n, str) and (CHAINS_ANY.search(n) or CHAINS_START.search(n)) for n in names)
 
 
 def settore(s):
@@ -35,17 +41,21 @@ def settore(s):
 def block_identikit(df):
     ateco = df.codice_ateco.fillna("").str.startswith("47.11")
     sett = df.settore.isin(["alimentare", "misto"])
-    kw = df.insegna.fillna("").str.contains(KEYWORDS)
+    names = df.insegna.fillna("") + " " + df.osm_name.fillna("") + " " + df.ov_nome.fillna("")
+    kw = names.str.contains(KEYWORDS)
     sup = pd.to_numeric(df.superficie_vendita, errors="coerce")
-    osm_conv = df.osm_shop.isin(["convenience"])
-    osm_alc = df.osm_shop.isin(["alcohol", "supermarket"])
+    osm_conv = df.osm_shop.isin(["convenience"]) | df.ov_categoria.eq("convenience_store")
+    osm_alc = df.osm_shop.isin(["alcohol", "supermarket"]) | df.ov_categoria.isin(["grocery_store", "liquor_store"])
+    # Overture dice negozio specializzato (forno, macelleria, enoteca...): non è un minimarket
+    specialist = df.ov_categoria.notna() & df.ov_categoria.ne("") & ~df.ov_categoria.isin(
+        ["convenience_store", "grocery_store", "liquor_store", "market", "food_and_beverage_store"])
     b = (0.45 * ateco + 0.15 * (df.settore == "alimentare") + 0.10 * (df.settore == "misto")
          + 0.25 * kw + 0.25 * osm_conv + 0.10 * osm_alc
          + np.where(sup < 100, 0.15, np.where(sup <= 250, 0.05, 0)))
     # serve almeno un segnale alimentare: senza, il negozio non è candidato
     b = np.where(ateco | sett | kw, b, 0).clip(0, 1)
-    chain_txt = df.insegna.fillna("") + " " + df.osm_name.fillna("") + " " + df.osm_brand.fillna("")
-    catena = chain_txt.str.contains(CHAINS)
+    b = np.where(specialist & ~kw & ~osm_conv, b * 0.5, b)
+    catena = pd.Series([is_chain(*r) for r in zip(df.insegna, df.osm_name, df.osm_brand, df.ov_nome)], index=df.index)
     return pd.Series(np.where(catena, 0, b), index=df.index), catena
 
 

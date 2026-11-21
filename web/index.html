@@ -107,7 +107,7 @@ function segForm(p, lat, lon) {
   });
   send.onclick = async () => {
     const f = k => el.querySelector(`[data-f="${k}"]`)?.value.trim() || '';
-    const nome = nuovo ? f('negozio') : [p.insegna || p.osm_name, p.indirizzo].filter(Boolean).join(', ');
+    const nome = nuovo ? f('negozio') : [p.insegna || p.osm_name || p.ov_nome, p.indirizzo].filter(Boolean).join(', ');
     const lines = ['#minipa segnalazione', `esito: ${esito}`, `visto_il: ${localISO()}`];
     if (f('chiude')) lines.push(`chiude_alle: ${f('chiude')}`);
     if (f('orari')) lines.push(`orari_esposti: ${f('orari')}`);
@@ -133,7 +133,7 @@ function segForm(p, lat, lon) {
 }
 
 function popup(p, lat, lon) {
-  const name = p.insegna || p.osm_name || '(insegna non indicata)';
+  const name = p.insegna || p.osm_name || p.ov_nome || '(insegna non indicata)';
   const ore = p.orari ? p.orari.map((iv, i) => `${DAYS[i]} ${iv.length ? iv.map(([a, b]) => hm(a) + '–' + hm(b)).join(', ') : 'chiuso'}`).join('<br>') : 'orari non noti';
   const el = document.createElement('div');
   el.innerHTML = `<b class="t">${esc(name)}</b><br>${esc(p.indirizzo)}${p.NIL ? ' · ' + esc(p.NIL) : ''}<br>
