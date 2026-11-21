@@ -67,6 +67,7 @@ Punteggio = 35·identikit + 25·contesto + 40·orari. Ogni blocco vale da 0 a 1.
 
 Chi apre la mappa può toccare un negozio e segnalare:
 - ✅ aperto adesso / ❌ chiuso adesso, con l'ora di chiusura se la conosce e gli orari esposti;
+- 🏪 è un minimarket: conferma che il negozio è davvero un minimarket;
 - chiuso per sempre;
 - non è un minimarket.
 
@@ -78,7 +79,8 @@ Con "＋ Nuovo negozio" si aggiunge un punto che non è in mappa.
   - "aperto" visto dopo le 22 alza il blocco orari (0,5, oppure 0,8 se dopo mezzanotte);
   - 2 o più conferme notturne, senza segnalazioni contrarie, portano il negozio almeno a 70;
   - più "chiuso" che "aperto" di notte limitano il punteggio a 39;
-  - "chiuso per sempre" o "non è un minimarket" lo azzerano;
+  - "è un minimarket" porta il blocco identikit almeno a 0,8;
+  - "chiuso per sempre" lo azzera; "non è un minimarket" lo azzera solo se le smentite superano le conferme;
   - i negozi nuovi entrano come record `SEG:<id nota>`.
 - Le segnalazioni aperto/chiuso finiscono anche in `data/ground_truth_segnalazioni.csv`, che `calibrate.py` usa insieme a `data/ground_truth.csv`.
 - **Per provare senza scrivere su OSM vero:** apri `index.html?osm=dev`. Le note vanno al server di prova `master.apis.dev.openstreetmap.org`.

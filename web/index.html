@@ -86,7 +86,7 @@ function remember(key) { sent[key] = Date.now(); try { localStorage.setItem('min
 function segForm(p, lat, lon) {
   const nuovo = !p;
   const opts = nuovo ? [['nuovo', 'Minimarket aperto la sera']]
-    : [['aperto', '✅ Aperto adesso'], ['chiuso', '❌ Chiuso adesso'], ['chiuso_definitivo', 'Chiuso per sempre'], ['non_minimarket', 'Non è un minimarket']];
+    : [['aperto', '✅ Aperto adesso'], ['chiuso', '❌ Chiuso adesso'], ['minimarket', '🏪 È un minimarket'], ['chiuso_definitivo', 'Chiuso per sempre'], ['non_minimarket', 'Non è un minimarket']];
   const el = document.createElement('div');
   el.className = 'seg';
   el.innerHTML = `<b>${nuovo ? 'Segnala un nuovo negozio qui' : 'Sei lì? Segnala'}</b>

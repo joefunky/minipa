@@ -84,6 +84,9 @@ def build():
     shops["segnalazioni"] = ev.seg_n.fillna(0).astype(int).to_numpy()
     contro = (ev.seg_chiusi_notte.fillna(0) > ev.seg_aperti_notte.fillna(0)).to_numpy()
     escludi = ev.seg_escludi.fillna(False).astype(bool).to_numpy()
+    # confermato "è un minimarket" da chi era lì: l'identikit vale almeno 0,8
+    mm = (ev.seg_minimarket.fillna(0) > 0).to_numpy() & ~escludi & ~shops.catena.to_numpy()
+    shops["b_identikit"] = np.where(mm, np.maximum(shops.b_identikit, 0.8), shops.b_identikit)
 
     # i non candidati non hanno identikit alimentare: niente orari né contesto che li promuova
     cand = (shops.b_identikit > 0) | shops.catena & pre

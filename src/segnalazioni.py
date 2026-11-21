@@ -3,7 +3,7 @@
 La mappa web crea una nota anonima con un testo strutturato, per esempio:
 
     #minipa segnalazione
-    esito: aperto            (aperto | chiuso | chiuso_definitivo | non_minimarket | nuovo)
+    esito: aperto            (aperto | chiuso | minimarket | chiuso_definitivo | non_minimarket | nuovo)
     visto_il: 2026-11-22T01:30
     chiude_alle: 02:00       (facoltativo)
     negozio: Minimarket, Via Esempio 3
@@ -83,7 +83,7 @@ def new_shops(notes):
 def evidence(notes):
     """-> DataFrame per Codice con prove serali/notturne e flag di esclusione."""
     if notes.empty:
-        return pd.DataFrame(columns=["Codice", "seg_n", "seg_aperto_max", "seg_chiusi_notte", "seg_aperti_notte",
+        return pd.DataFrame(columns=["Codice", "seg_n", "seg_aperto_max", "seg_chiusi_notte", "seg_aperti_notte", "seg_minimarket",
                                      "seg_escludi"]).set_index("Codice")
     n = notes.copy()
     n["Codice"] = n.codice.where(n.codice != "", "SEG:" + n.note_id.astype(str))
@@ -97,7 +97,11 @@ def evidence(notes):
         "seg_aperto_max": g.late.max(),
         "seg_aperti_notte": g.apply(lambda x: (x.notte & x.esito.isin(["aperto", "nuovo"])).sum(), include_groups=False),
         "seg_chiusi_notte": g.apply(lambda x: (x.notte & (x.esito == "chiuso")).sum(), include_groups=False),
-        "seg_escludi": g.apply(lambda x: x.esito.isin(["chiuso_definitivo", "non_minimarket"]).any(), include_groups=False),
+        # "è un minimarket" e "non è un minimarket" si bilanciano: esclude solo la maggioranza contraria
+        "seg_minimarket": g.apply(lambda x: x.esito.isin(["minimarket", "nuovo"]).sum(), include_groups=False),
+        "seg_escludi": g.apply(lambda x: (x.esito == "chiuso_definitivo").any()
+                               or (x.esito == "non_minimarket").sum() > x.esito.isin(["minimarket", "nuovo"]).sum(),
+                               include_groups=False),
     })
 
 
