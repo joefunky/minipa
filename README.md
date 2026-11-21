@@ -24,6 +24,7 @@ Poi apri `web/index.html` con doppio clic. Non serve nessuna build. Serve la con
 | C. Ordinanze movida 2026 | zone movida | atti del Comune | estiva 11/06–02/11/2026, Duomo/Arco 31/07–29/08/2026 |
 | D. OpenStreetMap (Overpass) | orari (`opening_hours`), tipo di negozio | ODbL | snapshot del 21/11/2026 |
 | I. Overture Maps Places (release mensile, letta con DuckDB) | nome usato online, categoria (minimarket/alimentari/specializzato), stato "chiuso per sempre", negozi assenti dal DS49 | CDLA Permissive 2.0 (+ODbL) | release 2026-11-18 |
+| J. Guide sul web (`data/manual/fonti_web.csv`, compilato a mano) | oggi la guida [ZERO "I minimarket notturni"](https://zero.eu/it/guide/i-minimarket-notturni/), 14 negozi | si usano solo indirizzo e ora di chiusura, con link alla fonte | guida del 28/11/2019: prova datata, quindi blocco orari al massimo 0,5 |
 | E. Google Places | **non usata**: vincolo costo zero | — | — |
 | F, G, H (Open Wifi, Mapillary, storico DS49) | non usate nella v1 | — | — |
 
@@ -47,7 +48,7 @@ Le statistiche aggiornate stanno in `data/output/stats.json`.
 
 Punteggio = 35·identikit + 25·contesto + 40·orari. Ogni blocco vale da 0 a 1. I pesi sono quelli dell'handoff, da ricalibrare con `src/calibrate.py`.
 
-- **Identikit:** ATECO 47.11 +0,45; settore alimentare +0,15 (misto +0,10); parole chiave merceologiche o di orario nell'insegna +0,25; OSM `convenience` +0,25 (`alcohol`/`supermarket` +0,10); superficie < 100 m² +0,15 (100–250 m² +0,05).
+- **Identikit:** ATECO 47.11 +0,45; settore alimentare +0,15; misto +0,25, con +0,15 in più se misto e superficie ≤ 40 m². È la firma che emerge dai negozi della guida ZERO: 7 su 9 contro il 20% dei candidati; parole chiave merceologiche o di orario nell'insegna +0,25; OSM `convenience` +0,25 (`alcohol`/`supermarket` +0,10); superficie < 100 m² +0,15 (100–250 m² +0,05).
   - Senza almeno un segnale alimentare il blocco vale 0.
   - Una catena (blacklist in `src/features.py`) porta il blocco a 0 e il punteggio a non più di 39: resta nel dataset con `catena=true`, ma fuori dalla mappa.
 - **Contesto:** 0,7 × percentile dei pubblici esercizi entro 200 m, più 0,3 se il negozio è in una zona movida.

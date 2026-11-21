@@ -39,17 +39,19 @@ def settore(s):
 
 
 def block_identikit(df):
+    sup = pd.to_numeric(df.superficie_vendita, errors="coerce")
     ateco = df.codice_ateco.fillna("").str.startswith("47.11")
     sett = df.settore.isin(["alimentare", "misto"])
     names = df.insegna.fillna("") + " " + df.osm_name.fillna("") + " " + df.ov_nome.fillna("")
     kw = names.str.contains(KEYWORDS)
-    sup = pd.to_numeric(df.superficie_vendita, errors="coerce")
     osm_conv = df.osm_shop.isin(["convenience"]) | df.ov_categoria.eq("convenience_store")
     osm_alc = df.osm_shop.isin(["alcohol", "supermarket"]) | df.ov_categoria.isin(["grocery_store", "liquor_store"])
     # Overture dice negozio specializzato (forno, macelleria, enoteca...): non è un minimarket
     specialist = df.ov_categoria.notna() & df.ov_categoria.ne("") & ~df.ov_categoria.isin(
         ["convenience_store", "grocery_store", "liquor_store", "market", "food_and_beverage_store"])
-    b = (0.45 * ateco + 0.15 * (df.settore == "alimentare") + 0.10 * (df.settore == "misto")
+    # firma emersa dai minimarket notturni noti (guida ZERO): settore misto e superficie minima
+    misto_piccolo = (df.settore == "misto") & (sup <= 40)
+    b = (0.45 * ateco + 0.15 * (df.settore == "alimentare") + 0.25 * (df.settore == "misto") + 0.15 * misto_piccolo
          + 0.25 * kw + 0.25 * osm_conv + 0.10 * osm_alc
          + np.where(sup < 100, 0.15, np.where(sup <= 250, 0.05, 0)))
     # serve almeno un segnale alimentare: senza, il negozio non è candidato

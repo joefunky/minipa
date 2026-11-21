@@ -11,7 +11,7 @@ from scipy.spatial import cKDTree
 from .common import INTERIM, OUTPUT, RAW, WEB, to_utm
 from .match import load_osm, match
 from . import segnalazioni as SEG
-from . import fetch_overture
+from . import fetch_overture, fonti_web
 
 WEIGHTS = {"b_identikit": 35, "b_contesto": 25, "b_orari": 40}  # ricalibrare con calibrate.py
 CHAIN_CAP = 39  # le catene non sono MiniPa: restano nel dataset, fuori dalla mappa
@@ -71,6 +71,9 @@ def build():
     shops["chiusura_max"] = cmax.map(lambda v: oh.fmt(int(v)) if pd.notna(v) else "")
     shops["fonti_orari"] = np.where(cmax.notna(), "OSM", "")
     shops["orari"] = weeks
+
+    # guide e articoli sul web (fonti_web.csv): prova datata di apertura notturna
+    shops, n_web = fonti_web.apply(shops)
 
     # prove dalle segnalazioni: aperto la sera/notte alza il blocco orari, esclusioni azzerano
     ev = SEG.evidence(notes).reindex(shops.Codice)
@@ -144,7 +147,7 @@ def _area(df, shops, lon, lat):
 COLS = ["Codice", "insegna", "indirizzo", "CAP", "MUNICIPIO", "NIL", "lat", "lon", "settore",
         "superficie_vendita", "codice_ateco", "score", "fascia", "b_identikit", "b_contesto", "b_orari",
         "catena", "candidato", "chiusura_max", "dopo_mezzanotte", "h24", "fonti_orari", "n_pe_200m",
-        "zona_movida", "osm_id", "osm_shop", "osm_name", "osm_opening_hours", "match_tipo", "match_dist_m", "segnalazioni", "ov_nome", "ov_categoria", "ov_stato", "ov_match"]
+        "zona_movida", "osm_id", "osm_shop", "osm_name", "osm_opening_hours", "match_tipo", "match_dist_m", "segnalazioni", "ov_nome", "ov_categoria", "ov_stato", "ov_match", "fonte_web"]
 
 
 _LEGAL = re.compile(r"\b(?:s\.?\s?r\.?\s?l|s\.?\s?n\.?\s?c|s\.?\s?a\.?\s?s|s\.?\s?p\.?\s?a|soc|ditta|"
@@ -174,7 +177,7 @@ def write(shops, pre):
 
     # per la mappa: solo fasce >= 40, in un .js così index.html si apre anche da file://
     keep = ["Codice", "insegna", "osm_name", "ov_nome", "indirizzo", "MUNICIPIO", "NIL", "score", "fascia", "chiusura_max",
-            "dopo_mezzanotte", "fonti_orari", "osm_id", "zona_movida", "segnalazioni", "orari"]
+            "dopo_mezzanotte", "fonti_orari", "osm_id", "zona_movida", "segnalazioni", "fonte_web", "orari"]
     web = {"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": [round(c, 6) for c in f["geometry"]["coordinates"]]},
          "properties": {k: (public_name(v) if k in ("insegna", "osm_name", "ov_nome") else v)

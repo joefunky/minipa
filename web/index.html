@@ -140,7 +140,7 @@ function popup(p, lat, lon) {
     Punteggio <b>${p.score}</b> (${LABEL[p.fascia]})${p.segnalazioni ? ` · ${p.segnalazioni} segnalazioni` : ''}<br>
     Chiusura più tarda: <b>${p.chiusura_max || 'n.d.'}</b>${p.dopo_mezzanotte ? ' · dopo mezzanotte' : ''}<br>
     <span class="muted">${ore}</span><br>
-    <span class="muted">Fonte orari: ${esc(p.fonti_orari) || 'nessuna'}${p.osm_id ? ` · <a target="_blank" href="https://www.openstreetmap.org/${p.osm_id}">OSM</a>` : ''}${p.zona_movida ? ' · zona movida ' + esc(p.zona_movida) : ''}</span>`;
+    <span class="muted">Fonte orari: ${esc(p.fonti_orari) || 'nessuna'}${p.osm_id ? ` · <a target="_blank" href="https://www.openstreetmap.org/${p.osm_id}">OSM</a>` : ''}${p.zona_movida ? ' · zona movida ' + esc(p.zona_movida) : ''}${p.fonte_web ? ` · citato da <a target="_blank" href="${esc(p.fonte_web.split('|')[1])}">${esc(p.fonte_web.split('|')[0])}</a>` : ''}</span>`;
   el.appendChild(segForm(p, lat, lon));
   return el;
 }

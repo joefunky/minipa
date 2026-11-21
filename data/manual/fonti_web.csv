@@ -1,0 +1,15 @@
+fonte;nome;indirizzo;orari;chiusura;url;data_fonte;lat;lon;geocodifica
+ZERO;Tito Minimarket;Via Sofia Bisi Albini 4;lun-dom 10-01;01:00;https://zero.eu/it/luoghi/176519-tito-minimarket,milano/;2019-11-28;45.498978;9.197172;DS49
+ZERO;Ayet Supermarket;Via Lazzaro Palazzi 9;lun-dom 10-02;02:00;https://zero.eu/it/luoghi/176470-ayet-supermarket,milano/;2019-11-28;45.4767852;9.2048861;Nominatim
+ZERO;Mi Spesa;Viale Tunisia 1;lun-dom 10-03;03:00;https://zero.eu/it/luoghi/176476-mi-spesa,milano/;2019-11-28;45.4767476;9.206342;Nominatim
+ZERO;Khadija Supermarket;Viale Monza 23;lun-dom 10-04;04:00;https://zero.eu/it/luoghi/176491-khadija-supermarket,milano/;2019-11-28;45.488736;9.217255;DS49
+ZERO;Azmeri Market;Viale Monza 10;lun-dom 10-01;01:00;https://zero.eu/it/luoghi/176481-azmeri-market,milano/;2019-11-28;45.488115;9.217508;DS49
+ZERO;Super Bangla Minimarket;Via dei Transiti 27;lun-dom 10-02;02:00;https://zero.eu/it/luoghi/176512-super-bangla-minimarket,milano/;2019-11-28;45.49095;9.218543;DS49
+ZERO;Padova Minimarket;Viale Padova 60;lun-dom 10-03;03:00;https://zero.eu/it/luoghi/176516-padova-minimarket,milano/;2019-11-28;45.490635;9.222845;DS49
+ZERO;Adel Minimarket;Via Monte Generoso 14;lun-dom 10-01;01:00;https://zero.eu/it/luoghi/176554-adel-minimarket,milano/;2019-11-28;45.4929023;9.1548208;Nominatim
+ZERO;Sami Minimarket;Via Stelvio 44;lun-dom 10-01;01:00;https://zero.eu/it/luoghi/176544-sami-minimarket,milano/;2019-11-28;45.494343;9.186736;DS49
+ZERO;Sorna Mini Market;Largo Rodari 1;24/7;24h;https://zero.eu/it/luoghi/176547-sorna-mini-market,milano/;2019-11-28;45.462231;9.234833;DS49
+ZERO;Bangladesh Mini Market;Via Arcivescovo Romilli 16;lun-dom 10-02:30;02:30;https://zero.eu/it/luoghi/176566-bangladesh-mini-market,milano/;2019-11-28;45.4392651;9.2149048;Nominatim
+ZERO;Mr. Alimentari;Viale Giovanni da Cermenate 64;lun-dom 11-02;02:00;https://zero.eu/it/luoghi/176568-mr-alimentari,milano/;2019-11-28;45.4372531;9.1830066;Nominatim
+ZERO;Ikram Mini Market;Viale Tibaldi 24;lun-dom 10-02:30;02:30;https://zero.eu/it/luoghi/176593-ikram-mini-market,milano/;2019-11-28;45.443304;9.179442;DS49
+ZERO;Kasfia Alimentari;Via Teodosio 60;lun-dom 11-03;03:00;https://zero.eu/it/luoghi/176603-kasfia-alimentari,milano/;2019-11-28;45.486882;9.230094;DS49
