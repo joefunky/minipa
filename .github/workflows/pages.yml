@@ -23,6 +23,12 @@ jobs:
           python-version: "3.14"
           cache: pip
       - run: pip install -r requirements.txt
+      # copia di riserva dei dati grezzi: se una fonte non risponde si usa l'ultima scaricata
+      - uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
       - run: python -m src.run --refresh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

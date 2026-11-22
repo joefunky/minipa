@@ -33,3 +33,22 @@ def save_meta(name, **info):
 def load_meta(name):
     f = RAW / f"{name}.meta.json"
     return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+
+
+def with_fallback(name, out, fetch):
+    """Scarica con fetch(); se la fonte non risponde usa l'ultima copia in data/raw (con avviso)."""
+    try:
+        return fetch()
+    except Exception as e:
+        seed = ROOT / "data" / "seed" / out.name  # copia di riserva nel repository (DS49, DS58)
+        if not out.exists() and seed.exists():
+            import shutil
+            shutil.copy(seed, out)
+            meta = seed.with_name(f"{name}.meta.json")
+            if meta.exists():
+                shutil.copy(meta, RAW / meta.name)
+        if out.exists():
+            print(f"  ATTENZIONE {name}: fonte non raggiungibile ({type(e).__name__}), uso la copia del "
+                  f"{load_meta(name).get('scaricato_il', '?')}")
+            return out
+        raise

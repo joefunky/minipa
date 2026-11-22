@@ -112,6 +112,8 @@ Con "＋ Nuovo negozio" si aggiunge un punto che non è in mappa.
 
 Si può anche lanciare a mano dalla scheda Actions. `data/raw`, `data/output` e `web/data.js` non stanno nel repository: li rigenera il workflow.
 
+**Se una fonte non risponde** (es. il portale del Comune, giù il 22/11/2026), la pipeline usa l'ultima copia: prima la cache del workflow, poi `data/seed/`, che è una copia di DS49 e DS58 nel repository (CC BY 4.0). Nel log compare un avviso `ATTENZIONE`.
+
 GitHub sospende i workflow pianificati dopo 60 giorni senza commit. In quel caso basta riattivarlo dalla scheda Actions.
 
 ## Vincolo etico

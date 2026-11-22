@@ -10,10 +10,12 @@ def main():
     refresh = "--refresh" in sys.argv
     print("1. download fonti open")
     fetch_comune.run(refresh)
-    fetch_osm.run(refresh)
-    fetch_overture.run(refresh)
+    from .common import RAW, with_fallback
+    with_fallback("osm_shops", RAW / "osm_shops.json", lambda: fetch_osm.run(refresh))
+    with_fallback("overture_places", RAW / "overture_places.parquet", lambda: fetch_overture.run(refresh))
     fetch_places.run()
-    segnalazioni.fetch(refresh=True)  # sempre: sono le novità più frequenti
+    # sempre: sono le novità più frequenti
+    with_fallback("segnalazioni_osm", RAW / "segnalazioni_osm.json", lambda: segnalazioni.fetch(refresh=True))
     print("2. zone movida")
     _, tipo = ordinanze.load_zones()
     print(f"  zone: {tipo}")

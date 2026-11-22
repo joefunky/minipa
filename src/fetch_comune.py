@@ -1,7 +1,7 @@
 """Fonti A (DS49) e B (DS58) dal portale CKAN del Comune di Milano."""
 import requests
 
-from .common import RAW, save_meta
+from .common import RAW, save_meta, with_fallback
 
 CKAN = "https://dati.comune.milano.it/api/3/action/package_show"
 DATASETS = {
@@ -26,7 +26,7 @@ def fetch(name, refresh=False):
 
 
 def run(refresh=False):
-    return {n: fetch(n, refresh) for n in DATASETS}
+    return {n: with_fallback(n, RAW / f"{n}.csv", lambda n=n: fetch(n, refresh)) for n in DATASETS}
 
 
 if __name__ == "__main__":
