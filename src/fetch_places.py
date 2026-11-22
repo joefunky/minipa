@@ -25,13 +25,14 @@ import numpy as np
 import pandas as pd
 import requests
 
-from .common import OUTPUT, RAW, ROOT
+from .common import OUTPUT, RAW, ROOT, to_utm
 
 URL = "https://places.googleapis.com/v1/places:searchText"
 FIELDS = ("places.id,places.displayName,places.location,places.regularOpeningHours,"
           "places.businessStatus,places.primaryType,nextPageToken")
 QUERY = "minimarket alimentari"
 CELLA_GRADI = (0.013, 0.009)  # ~1 km in longitudine e latitudine a Milano
+DUOMO = (9.1900, 45.4642)
 MAX_PAGINE = 3
 TETTO_GIORNO, TETTO_MESE = 30, 900
 CACHE = RAW / "places"
@@ -51,13 +52,16 @@ def _key():
 
 
 def celle():
-    """Celle della griglia con almeno un candidato, prima quelle con più candidati da ≥30 punti."""
-    d = pd.read_csv(OUTPUT / "minipa_milano.csv", usecols=["lon", "lat", "candidato", "score"])
+    """Celle della griglia con almeno un candidato, dal centro (Duomo) verso l'esterno."""
+    d = pd.read_csv(OUTPUT / "minipa_milano.csv", usecols=["lon", "lat", "candidato"])
     d = d[d.candidato]
-    d = d.assign(ix=np.floor(d.lon / CELLA_GRADI[0]).astype(int), iy=np.floor(d.lat / CELLA_GRADI[1]).astype(int),
-                 buoni=d.score >= 30)
-    g = d.groupby(["ix", "iy"]).agg(buoni=("buoni", "sum"), n=("buoni", "size"))
-    return list(g.sort_values(["buoni", "n"], ascending=False).index)
+    cells = set(zip(np.floor(d.lon / CELLA_GRADI[0]).astype(int), np.floor(d.lat / CELLA_GRADI[1]).astype(int)))
+    duomo = to_utm([DUOMO[0]], [DUOMO[1]])[0]
+
+    def dist(c):
+        centro = to_utm([(c[0] + 0.5) * CELLA_GRADI[0]], [(c[1] + 0.5) * CELLA_GRADI[1]])[0]
+        return float(np.hypot(*(centro - duomo)))
+    return sorted(cells, key=dist)
 
 
 def _uso():
