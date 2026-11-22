@@ -93,7 +93,8 @@ def stima():
     print(f"soglia gratuita Text Search Enterprise: 1.000/mese; tetto interno {TETTO_MESE}/mese -> costo 0 €")
 
 
-def vai():
+def vai(extra=0):
+    """extra: richieste in più solo per questo giro (eccezione decisa da Giovanni)."""
     key = _key()
     CACHE.mkdir(parents=True, exist_ok=True)
     pulisci_cache()
@@ -109,12 +110,18 @@ def vai():
                            "locationRestriction": {"rectangle": rect}}, []
         for _ in range(MAX_PAGINE):
             u, oggi, mese = _uso()
-            if oggi >= TETTO_GIORNO or mese >= TETTO_MESE:
+            if oggi >= TETTO_GIORNO + extra or mese >= TETTO_MESE:
+                if risultati:  # tetto a metà zona: salvo le pagine già pagate (zona segnata come parziale)
+                    (CACHE / f"{cid}.json").write_text(json.dumps(risultati, ensure_ascii=False), encoding="utf-8")
+                    u.setdefault("celle_fatte", []).append(cid)
+                    u.setdefault("celle_parziali", []).append(cid)
+                    USO.write_text(json.dumps(u, indent=1), encoding="utf-8")
                 print(f"tetto raggiunto (oggi {oggi}, mese {mese}): riprendo domani")
                 return
             r = requests.post(URL, json=body, timeout=60, headers={
                 "X-Goog-Api-Key": key, "X-Goog-FieldMask": FIELDS, "Content-Type": "application/json"})
-            _conta(u)
+            if r.status_code != 429:  # le richieste rifiutate per quota non si pagano
+                _conta(u)
             if r.status_code != 200:
                 print(f"errore {r.status_code}: {r.text[:200]}")
                 return
@@ -139,6 +146,6 @@ def run(*_, **__):
 
 if __name__ == "__main__":
     if "--vai" in sys.argv:
-        vai()
+        vai(int(sys.argv[sys.argv.index("--extra") + 1]) if "--extra" in sys.argv else 0)
     else:
         stima()
