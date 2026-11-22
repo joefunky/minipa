@@ -51,12 +51,13 @@ def _key():
 
 
 def celle():
-    """Celle della griglia che contengono almeno un candidato della pipeline open."""
-    d = pd.read_csv(OUTPUT / "minipa_milano.csv", usecols=["lon", "lat", "candidato"])
+    """Celle della griglia con almeno un candidato, prima quelle con più candidati da ≥30 punti."""
+    d = pd.read_csv(OUTPUT / "minipa_milano.csv", usecols=["lon", "lat", "candidato", "score"])
     d = d[d.candidato]
-    ix = np.floor(d.lon / CELLA_GRADI[0]).astype(int)
-    iy = np.floor(d.lat / CELLA_GRADI[1]).astype(int)
-    return sorted(set(zip(ix, iy)))
+    d = d.assign(ix=np.floor(d.lon / CELLA_GRADI[0]).astype(int), iy=np.floor(d.lat / CELLA_GRADI[1]).astype(int),
+                 buoni=d.score >= 30)
+    g = d.groupby(["ix", "iy"]).agg(buoni=("buoni", "sum"), n=("buoni", "size"))
+    return list(g.sort_values(["buoni", "n"], ascending=False).index)
 
 
 def _uso():
