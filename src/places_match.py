@@ -18,7 +18,8 @@ from .common import OUTPUT, RAW, to_utm
 from .fetch_places import CACHE, pulisci_cache
 
 RAGGIO = 30
-TIPI_SPECIALIZZATI = {"butcher_shop", "bakery", "deli", "pastry_shop", "wine_store", "liquor_store_specialized"}
+# solo negozi di alimentari generici: in centro la ricerca restituisce anche gelaterie, bar, ristoranti
+TIPI_OK = {"grocery_store", "supermarket", "convenience_store", "food_store", "market", "store", "liquor_store"}
 
 
 def week(periods):
@@ -54,10 +55,10 @@ def run():
     g["dist_m"] = np.where(ok, d.round(1), np.nan)
     m = g.merge(shops[["Codice", "indirizzo", "MUNICIPIO", "score", "fascia"]], on="Codice", how="left")
     m["maps"] = "https://www.google.com/maps/place/?q=place_id:" + m.place_id
-    sera = m[(m.g_cmax >= 22 * 60) & ~m.tipo.isin(TIPI_SPECIALIZZATI)].sort_values("g_cmax", ascending=False)
+    sera = m[(m.g_cmax >= 22 * 60) & m.tipo.isin(TIPI_OK)].sort_values("g_cmax", ascending=False)
     sera.drop(columns=["g_cmax"]).to_csv(OUTPUT / "coda_google.csv", index=False, encoding="utf-8-sig")
     print(f"luoghi Google: {len(g)}, abbinati a negozi MiniPa: {ok.sum()}")
-    print(f"aperti dopo le 22 (non specializzati): {len(sera)}; dopo mezzanotte: {int(sera.g_dopo_mezzanotte.sum())}; "
+    print(f"aperti dopo le 22 (alimentari generici): {len(sera)}; dopo mezzanotte: {int(sera.g_dopo_mezzanotte.sum())}; "
           f"senza corrispondenza in MiniPa: {int((sera.Codice == '').sum())}")
     return sera
 
