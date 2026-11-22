@@ -41,12 +41,13 @@
     <label><input type="checkbox" id="fNow"> aperto adesso (orari noti)</label>
     <label><input type="checkbox" id="fMid" checked> aperto dopo mezzanotte</label>
     <label><input type="checkbox" id="fSafe"> solo i sicuri (probabili)</label>
+    <label><input type="checkbox" id="fGgl" checked> mostra "da confermare" (segnalati da Google)</label>
     <label><input type="checkbox" id="fNew" checked> mostra anche "da scoprire"</label>
     <label>Municipio <select id="fMun"><option value="">tutti</option></select></label>
     <label>Punteggio minimo: <b id="vMin">30</b><input type="range" id="fMin" min="30" max="100" value="30"></label>
     <label><input type="checkbox" id="fZone"> zone movida</label>
     <div class="row"><button id="bLoc">📍 Vicino a me</button><button id="bAdd">＋ Nuovo negozio</button></div>
-    <div class="legend muted"><span style="background:#1a9850;margin-left:0"></span>probabile<span style="background:#f39c12"></span>da verificare<span style="background:#9aa0a6"></span>da scoprire</div>
+    <div class="legend muted"><span style="background:#1a9850;margin-left:0"></span>probabile<span style="background:#f39c12"></span>da verificare<span style="background:#9aa0a6"></span>da scoprire<span style="background:#8e44ad"></span>da confermare</div>
     <div class="muted" id="count"></div>
     <div class="muted" id="dates"></div>
   </div>
@@ -67,8 +68,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19,
 const DAYS = ['lun', 'mar', 'mer', 'gio', 'ven', 'sab', 'dom'];
 const hm = m => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const COLOR = { probabile: '#1a9850', verifica: '#f39c12', da_scoprire: '#9aa0a6' };
-const LABEL = { probabile: 'probabile', verifica: 'da verificare', da_scoprire: 'da scoprire' };
+const COLOR = { probabile: '#1a9850', verifica: '#f39c12', da_scoprire: '#9aa0a6', da_confermare: '#8e44ad' };
+const LABEL = { probabile: 'probabile', verifica: 'da verificare', da_scoprire: 'da scoprire', da_confermare: 'da confermare' };
 
 function openNow(orari, d = new Date()) {
   if (!orari) return false;
@@ -134,6 +135,14 @@ function segForm(p, lat, lon) {
 }
 
 function popup(p, lat, lon) {
+  if (p.fascia === 'da_confermare') {
+    const el = document.createElement('div');
+    el.innerHTML = `<b class="t">Da confermare</b><br>
+      <span class="muted">Possibile negozio aperto la sera, suggerito da Google e non ancora verificato da nessuno.</span><br>
+      <a target="_blank" href="${esc(p.google_link)}">Apri su Google Maps</a> per i dettagli.`;
+    el.appendChild(segForm(p, lat, lon));
+    return el;
+  }
   const name = p.insegna || p.osm_name || p.ov_nome || '(insegna non indicata)';
   const ore = p.orari ? p.orari.map((iv, i) => `${DAYS[i]} ${iv.length ? iv.map(([a, b]) => hm(a) + '–' + hm(b)).join(', ') : 'chiuso'}`).join('<br>') : 'orari non noti';
   const el = document.createElement('div');
@@ -141,7 +150,7 @@ function popup(p, lat, lon) {
     Punteggio <b>${p.score}</b> (${LABEL[p.fascia]})${p.segnalazioni ? ` · ${p.segnalazioni} segnalazioni` : ''}<br>
     Chiusura più tarda: <b>${p.chiusura_max || 'n.d.'}</b>${p.dopo_mezzanotte ? ' · dopo mezzanotte' : ''}<br>
     <span class="muted">${ore}</span><br>
-    <span class="muted">Fonte orari: ${esc(p.fonti_orari) || 'nessuna'}${p.osm_id ? ` · <a target="_blank" href="https://www.openstreetmap.org/${p.osm_id}">OSM</a>` : ''}${p.zona_movida ? ' · zona movida ' + esc(p.zona_movida) : ''}${p.fonte_web ? ` · citato da <a target="_blank" href="${esc(p.fonte_web.split('|')[1])}">${esc(p.fonte_web.split('|')[0])}</a>` : ''}</span>`;
+    <span class="muted">Fonte orari: ${esc(p.fonti_orari) || 'nessuna'}${p.osm_id ? ` · <a target="_blank" href="https://www.openstreetmap.org/${p.osm_id}">OSM</a>` : ''}${p.zona_movida ? ' · zona movida ' + esc(p.zona_movida) : ''}${p.google_link ? ` · <a target="_blank" href="${esc(p.google_link)}">Google Maps</a>` : ''}${p.fonte_web ? ` · citato da <a target="_blank" href="${esc(p.fonte_web.split('|')[1])}">${esc(p.fonte_web.split('|')[0])}</a>` : ''}</span>`;
   el.appendChild(segForm(p, lat, lon));
   return el;
 }
@@ -161,11 +170,15 @@ const mun = [...new Set(markers.map(m => m.p.MUNICIPIO).filter(Boolean))].sort((
 $('fMun').innerHTML += mun.map(m => `<option>${m}</option>`).join('');
 
 function refresh() {
-  const safe = $('fSafe').checked, now = $('fNow').checked, mid = $('fMid').checked, nw = $('fNew').checked, mu = $('fMun').value, min = +$('fMin').value;
+  const ggl = $('fGgl').checked, safe = $('fSafe').checked, now = $('fNow').checked, mid = $('fMid').checked, nw = $('fNew').checked, mu = $('fMun').value, min = +$('fMin').value;
   $('vMin').textContent = min;
   layer.clearLayers();
   let n = 0;
   for (const { p, mk } of markers) {
+    if (p.fascia === 'da_confermare') {  // solo posizione da Google: filtri su orari non applicabili
+      if (ggl && !safe && !(mu && String(p.MUNICIPIO) !== mu)) { mk.addTo(layer); n++; }
+      continue;
+    }
     if (p.score < min || (safe && p.fascia !== 'probabile') || (!nw && p.fascia === 'da_scoprire') || (mid && !p.dopo_mezzanotte) ||
         (mu && String(p.MUNICIPIO) !== mu) || (now && !openNow(p.orari))) continue;
     mk.addTo(layer); n++;
@@ -173,7 +186,7 @@ function refresh() {
   $('count').textContent = `${n} negozi visibili su ${markers.length}`;
   $('fZone').checked ? zones.addTo(map) : zones.remove();
 }
-['fSafe', 'fNow', 'fMid', 'fNew', 'fMun', 'fMin', 'fZone'].forEach(id => $(id).addEventListener('input', refresh));
+['fGgl', 'fSafe', 'fNow', 'fMid', 'fNew', 'fMun', 'fMin', 'fZone'].forEach(id => $(id).addEventListener('input', refresh));
 
 $('toggle').onclick = () => { $('panel').classList.toggle('closed'); $('arrow').textContent = $('panel').classList.contains('closed') ? '▼' : '▲'; };
 if (innerWidth < 600) $('toggle').onclick();

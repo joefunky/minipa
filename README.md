@@ -25,7 +25,7 @@ Poi apri `web/index.html` con doppio clic. Non serve nessuna build. Serve la con
 | D. OpenStreetMap (Overpass) | orari (`opening_hours`), tipo di negozio | ODbL | snapshot del 21/11/2026 |
 | I. Overture Maps Places (release mensile, letta con DuckDB) | nome usato online, categoria (minimarket/alimentari/specializzato), stato "chiuso per sempre", negozi assenti dal DS49 | CDLA Permissive 2.0 (+ODbL) | release 2026-11-18 |
 | J. Guide sul web (`data/manual/fonti_web.csv`, compilato a mano) | oggi la guida [ZERO "I minimarket notturni"](https://zero.eu/it/guide/i-minimarket-notturni/), 14 negozi | si usano solo indirizzo e ora di chiusura, con link alla fonte | guida del 28/11/2019: prova datata, quindi blocco orari al massimo 0,5 |
-| E. Google Places | **non usata**: vincolo costo zero | — | — |
+| E. Google Places (API New, Text Search) | solo sul PC: zone da ~1 km dal centro verso l'esterno, 30 richieste/giorno (tetto Google + tetto interno 900/mese), costo 0 € | termini Google Maps Platform EEA | cache locale max 30 giorni |
 | F, G, H (Open Wifi, Mapillary, storico DS49) | non usate nella v1 | — | — |
 
 La data di download e l'URL di ogni fonte sono nei file `data/raw/*.meta.json`.
@@ -85,6 +85,23 @@ Con "＋ Nuovo negozio" si aggiunge un punto che non è in mappa.
   - i negozi nuovi entrano come record `SEG:<id nota>`.
 - Le segnalazioni aperto/chiuso finiscono anche in `data/ground_truth_segnalazioni.csv`, che `calibrate.py` usa insieme a `data/ground_truth.csv`.
 - **Per provare senza scrivere su OSM vero:** apri `index.html?osm=dev`. Le note vanno al server di prova `master.apis.dev.openstreetmap.org`.
+
+## Google Places: punti "da confermare"
+
+`python -m src.fetch_places --vai` (solo sul PC, mai nel workflow) cerca "minimarket alimentari" zona per zona. `python -m src.places_match` abbina i risultati ai negozi MiniPa e scrive due file:
+- `data/output/coda_google.csv`: privato, ignorato da git. Contiene orari e tipi Google e serve per decidere dove mandare chi verifica.
+- `data/manual/google_da_confermare.csv`: pubblico. Contiene **solo** place_id, coordinate e data, per i luoghi che Google dà aperti dopo le 22.
+
+**In mappa:**
+- I punti che non abbiamo diventano **segnaposti viola "da confermare"**. Il popup ha il link a Google Maps e i pulsanti di segnalazione, senza nessun altro dato Google.
+- I negozi che abbiamo già ricevono solo il link a Google Maps.
+
+**Termini EEA di Google Maps Platform:** con una mappa qualsiasi si possono usare solo latitudine, longitudine e place_id ([Places API adjustments for EEA customers](https://developers.google.com/maps/comms/eea/places)). Resta da verificare nel documento "EEA Places API Permitted Uses" se sia lecito scegliere i punti in base agli orari: è una decisione presa da Giovanni il 22/11/2026.
+
+**Regole dei punti viola:**
+- scadono dopo 30 giorni se non vengono riscaricati;
+- con la prima segnalazione sul posto diventano negozi MiniPa normali;
+- i dati Google non finiscono mai nelle note OSM.
 
 ## Pubblicazione (GitHub Pages)
 

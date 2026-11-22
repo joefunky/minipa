@@ -11,7 +11,7 @@ from scipy.spatial import cKDTree
 from .common import INTERIM, OUTPUT, RAW, WEB, to_utm
 from .match import load_osm, match
 from . import segnalazioni as SEG
-from . import fetch_overture, fonti_web
+from . import fetch_overture, fonti_web, google_punti
 
 WEIGHTS = {"b_identikit": 35, "b_contesto": 25, "b_orari": 40}  # ricalibrare con calibrate.py
 CHAIN_CAP = 39  # le catene non sono MiniPa: restano nel dataset, fuori dalla mappa
@@ -55,6 +55,8 @@ def build():
 
     # Overture: nome usato online, categoria e stato dei negozi alimentari
     shops, pre = _overture(shops, pre)
+    # punti 'da confermare' suggeriti da Google: solo posizione e place_id (termini EEA)
+    shops, pre = google_punti.add(shops, pre, _area)
 
     # negozi nuovi segnalati dai cittadini (note OSM #minipa, esito "nuovo")
     notes = SEG.load()
@@ -105,6 +107,7 @@ def build():
     shops["score"] = np.where(cand, s, 0).round(1)
     shops["fascia"] = fascia(shops.score)
     shops["candidato"] = cand & ~shops.catena
+    shops = google_punti.mark(shops)
     SEG.write_ground_truth(notes)
     return shops, pre
 
@@ -147,7 +150,7 @@ def _area(df, shops, lon, lat):
 COLS = ["Codice", "insegna", "indirizzo", "CAP", "MUNICIPIO", "NIL", "lat", "lon", "settore",
         "superficie_vendita", "codice_ateco", "score", "fascia", "b_identikit", "b_contesto", "b_orari",
         "catena", "candidato", "chiusura_max", "dopo_mezzanotte", "h24", "fonti_orari", "n_pe_200m",
-        "zona_movida", "osm_id", "osm_shop", "osm_name", "osm_opening_hours", "match_tipo", "match_dist_m", "segnalazioni", "ov_nome", "ov_categoria", "ov_stato", "ov_match", "fonte_web"]
+        "zona_movida", "osm_id", "osm_shop", "osm_name", "osm_opening_hours", "match_tipo", "match_dist_m", "segnalazioni", "ov_nome", "ov_categoria", "ov_stato", "ov_match", "fonte_web", "google_link"]
 
 
 _LEGAL = re.compile(r"\b(?:s\.?\s?r\.?\s?l|s\.?\s?n\.?\s?c|s\.?\s?a\.?\s?s|s\.?\s?p\.?\s?a|soc|ditta|"
@@ -177,12 +180,12 @@ def write(shops, pre):
 
     # per la mappa: solo fasce >= 40, in un .js così index.html si apre anche da file://
     keep = ["Codice", "insegna", "osm_name", "ov_nome", "indirizzo", "MUNICIPIO", "NIL", "score", "fascia", "chiusura_max",
-            "dopo_mezzanotte", "fonti_orari", "osm_id", "zona_movida", "segnalazioni", "fonte_web", "orari"]
+            "dopo_mezzanotte", "fonti_orari", "osm_id", "zona_movida", "segnalazioni", "fonte_web", "google_link", "orari"]
     web = {"type": "FeatureCollection", "features": [
         {"type": "Feature", "geometry": {"type": "Point", "coordinates": [round(c, 6) for c in f["geometry"]["coordinates"]]},
          "properties": {k: (public_name(v) if k in ("insegna", "osm_name", "ov_nome") else v)
                         for k, v in ((k, f["properties"].get(k)) for k in keep)}}
-        for f in fc["features"] if f["properties"]["score"] >= 30 and f["properties"]["candidato"]]}
+        for f in fc["features"] if (f["properties"]["score"] >= 30 and f["properties"]["candidato"]) or f["properties"]["fascia"] == "da_confermare"]}
     zones = json.loads((INTERIM / "zone_movida.geojson").read_text(encoding="utf-8"))
     meta = {k: json.loads((RAW / f"{k}.meta.json").read_text(encoding="utf-8")) for k in ("ds49", "ds58", "osm_shops")}
     (WEB / "data.js").write_text("window.MINIPA=" + json.dumps({"negozi": web, "zone": zones, "meta": meta},
